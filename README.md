@@ -121,5 +121,4 @@ and agent domain rationale.
 ## Friction Log
 
 See [`FRICTION_LOG.md`](FRICTION_LOG.md) for developer experience notes
-captured during setup and development — filed as candid feedback for the
-LangChain team.
+captured during setup and development.
