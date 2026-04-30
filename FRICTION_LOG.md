@@ -45,6 +45,12 @@ it easily from the quickstart entry point.
 **Category:** Setup / Dependency Management
 **Severity:** Medium — clear error message but resolution not obvious
 
+**Note:** This is not a LangChain bug — it is a Poetry 2.x behavior change.
+However, since it surfaces specifically when installing LangChain packages,
+a note in the installation guide would meaningfully reduce friction for
+users on Poetry 2.x. I mention it here only because it is part of the
+full onboarding experience a developer has when building with this ecosystem.
+
 **What happened:**
 When initializing a new Poetry 2.x project with the default `python = "^3.11"`
 constraint, running `poetry add langchain-core` failed with a dependency
