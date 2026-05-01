@@ -37,7 +37,7 @@ install:
 # -----------------------------------------------------------------------------
 run:
 	@echo "Running options income advisor agent..."
-	poetry run python agent/graph.py
+	poetry run python -m agent.graph
 
 # -----------------------------------------------------------------------------
 # lint — check code quality with ruff
@@ -66,7 +66,7 @@ test:
 # -----------------------------------------------------------------------------
 eval:
 	@echo "Running LangSmith evaluation experiment..."
-	poetry run python evals/evaluate.py
+	poetry run python -m evals.evaluate
 
 # -----------------------------------------------------------------------------
 # help — list all available targets

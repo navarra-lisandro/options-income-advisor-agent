@@ -52,6 +52,7 @@ from pathlib import Path
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_anthropic import ChatAnthropic
+from dotenv import load_dotenv
 
 from agent.state import AgentState, PositionScreening
 from agent.tools import (
@@ -61,6 +62,11 @@ from agent.tools import (
     TOOLS,
 )
 
+# ---------------------------------------------------------------------------
+# Load environment variables from .env
+# Required: ANTHROPIC_API_KEY, LANGCHAIN_API_KEY, LANGCHAIN_TRACING_V2
+# ---------------------------------------------------------------------------
+load_dotenv()
 
 # ---------------------------------------------------------------------------
 # LLM instance — bound with tools for the generate_report node

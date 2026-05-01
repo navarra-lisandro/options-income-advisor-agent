@@ -48,7 +48,6 @@ LangGraph Reference Docs:
     https://langchain-ai.github.io/langgraph/concepts/human_in_the_loop/
 """
 
-from dotenv import load_dotenv
 from langgraph.graph import StateGraph, START, END
 
 from agent.state import AgentState
@@ -59,13 +58,6 @@ from agent.nodes import (
     screen_dividends,
     generate_report,
 )
-
-# ---------------------------------------------------------------------------
-# Load environment variables from .env
-# Required: ANTHROPIC_API_KEY, LANGCHAIN_API_KEY, LANGCHAIN_TRACING_V2
-# ---------------------------------------------------------------------------
-load_dotenv()
-
 
 # ---------------------------------------------------------------------------
 # Build the graph
