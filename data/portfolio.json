@@ -45,6 +45,19 @@
       "next_earnings_date": "2026-05-28",
       "sector": "Technology",
       "notes": "High momentum growth stock. Not a dividend aristocrat. Earnings fall within 30-day expiry window — significant IV crush and assignment risk. Not recommended for covered call this cycle. Better candidate for Cash-Secured Put (Income Wheel Leg 2) post-earnings."
+    },
+    {
+      "ticker": "TSLA",
+      "company": "Tesla Inc.",
+      "shares": 25,
+      "avg_cost_basis": 175.00,
+      "current_price": 182.50,
+      "is_dividend_aristocrat": false,
+      "dividend_yield_pct": 0.0,
+      "next_ex_dividend_date": null,
+      "next_earnings_date": "2026-05-12",
+      "sector": "Technology",
+      "notes": "High volatility momentum stock. Not a dividend aristocrat. Earnings in 4 days — well within the 30-day expiry window. Hard stop — do not sell covered call this cycle. Significant IV crush and gap risk around earnings event."
     }
   ]
 }
