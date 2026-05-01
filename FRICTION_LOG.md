@@ -156,6 +156,40 @@ this is simply an observation from my own experience building this project.
 
 ---
 
+## Friction #6 — Poetry 2.x defaults to package mode
+New users using Poetry purely for dependency management hit this error when CI tries to install the project. The fix (package-mode = false) is not obvious from the error message. The error suggests --no-root as a workaround but the cleaner fix is the pyproject.toml setting.
+
+**Category:** Setup / Dependency Management
+**Severity:** Medium — CI fails clearly, error message is verbose but resolution not obvious
+
+**What happened:**
+During the initial GitHub Actions CI run, the pipeline failed
+at the dependency installation step with the following error:
+
+"The current project could not be installed: No file/folder
+found for package options-income-advisor-agent"
+
+The error surfaced in CI, not during local development, as
+poetry install ran cleanly on my machine without this issue.
+
+**Impact on my experience:**
+Resolving the error required searching online for the correct
+Poetry 2.x configuration. While the error message does mention
+package-mode = false as a possible fix, it presents it as one
+of three options without clarity on which is most appropriate
+for a dependency-management-only project. The correct solution
+was adding package-mode = false under [tool.poetry] in
+pyproject.toml.
+
+**Observation:**
+This is a Poetry 2.x behavior, not specific to LangChain.
+However, since it surfaced during LangChain project setup,
+it may be worth a brief mention in the installation guide
+for developers using Poetry — simply noting that
+package-mode = false is recommended for dependency-only
+projects.
+
+
 ## Summary
 
 | # | Category | Severity |
