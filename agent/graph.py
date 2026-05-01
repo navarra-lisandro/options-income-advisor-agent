@@ -22,11 +22,12 @@ File Dependency Map:
 
 Graph Topology:
   START
-    → load_portfolio      (loads positions into state)
-    → screen_aristocrat   (Screen 1: dividend aristocrat check)
-    → screen_earnings     (Screen 2: earnings calendar check)
-    → screen_dividends    (Screen 3: dividend overlap check)
-    → generate_report     (Claude synthesizes recommendations)
+    → load_portfolio          (loads positions into state)
+    → screen_aristocrat       (Screen 1: dividend aristocrat check)
+    → screen_earnings         (Screen 2: earnings calendar check)
+    → screen_dividends        (Screen 3: dividend overlap check)
+    → generate_report         (Claude synthesizes recommendations)
+    → create_order_summary    (Conditional routing based on PASS/FAIL recommendation)
   END
 
 Edge Strategy:
@@ -57,7 +58,27 @@ from agent.nodes import (
     screen_earnings,
     screen_dividends,
     generate_report,
+    create_order_summary,
 )
+
+# ---------------------------------------------------------------------------
+# Conditional Route
+# ---------------------------------------------------------------------------
+def route_after_report(state: AgentState) -> str:
+    """
+    Conditional routing after generate_report.
+    Routes to create_order_summary if any position cleared
+    all three screens with no FAIL — Option B routing logic.
+    Routes to END if all positions have at least one FAIL screen.
+    See ADR-006 for full rationale including Option A future consideration.
+    """
+    candidates = [
+        s for s in state["screenings"]
+        if s["aristocrat_screen"] != "FAIL"
+        and s["earnings_screen"] != "FAIL"
+        and s["dividend_screen"] != "FAIL"
+    ]
+    return "has_candidates" if candidates else "all_avoided"
 
 # ---------------------------------------------------------------------------
 # Build the graph
@@ -88,15 +109,26 @@ def build_graph() -> StateGraph:
 
     # -----------------------------------------------------------------------
     # Define edges — the execution order of nodes
-    # All edges are unconditional: every node always runs.
-    # See ADR-006 for rationale and future conditional edge considerations.
+    # Unconditional and Conditional Branching.
+    # See ADR-006 for rationale and future edge considerations.
     # -----------------------------------------------------------------------
     builder.add_edge(START, "load_portfolio")
     builder.add_edge("load_portfolio", "screen_aristocrat")
     builder.add_edge("screen_aristocrat", "screen_earnings")
     builder.add_edge("screen_earnings", "screen_dividends")
     builder.add_edge("screen_dividends", "generate_report")
-    builder.add_edge("generate_report", END)
+    builder.add_node("create_order_summary", create_order_summary)
+    #Conditional edge branch route_after_report only executes for PASS recommendations
+    builder.add_conditional_edges(
+        "generate_report",
+        route_after_report,
+        {
+            "has_candidates": "create_order_summary",
+            "all_avoided": END
+        }
+    )
+    #Always execute the create_order_summary edge summary, regardless of PASS/FAIL 
+    builder.add_edge("create_order_summary", END)
 
     return builder.compile()
 
@@ -131,3 +163,6 @@ if __name__ == "__main__":
     print("  FINAL REPORT")
     print("=" * 60)
     print(f"\n{result.get('final_report', 'No report generated.')}\n")
+    # Execute print after the FINAL REPORT block (if order summary is present):
+    if result.get("order_summary"):
+        print(result["order_summary"])
