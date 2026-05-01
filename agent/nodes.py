@@ -311,3 +311,101 @@ End with a brief portfolio-level summary."""
         "final_report": final_report,
         "screenings": screenings,
     }
+
+
+# ---------------------------------------------------------------------------
+# Node 6 — create_order_summary
+# Formats actionable positions into a clean order summary
+# Only reached via conditional edge when candidates exist (no FAIL screens)
+# ---------------------------------------------------------------------------
+def create_order_summary(state: AgentState) -> dict:
+    """
+    Formats positions with no FAIL screens into a clean order summary.
+    This node is only reached via conditional edge when at least one
+    position cleared all three screens (PASS or CAUTION — no FAIL).
+ 
+    This node serves two purposes:
+      1. Immediate — clean, actionable output for the trader
+      2. Future — structured input for brokerage order automation
+ 
+    The distinction between Option A and Option B routing:
+      Option A (this is future feature, incorporates a human-in-the-loop):
+        Route here if any position is a dividend aristocrat,
+        regardless of other screens. Human reviews and overrides.
+      Option B (current implementation):
+        Route here only if no screen is FAIL for at least one
+        position. Stricter — no hard stops allowed.
+ 
+    See ADR-006 for full conditional edge rationale.
+    """
+    from datetime import date
+    today = date.today().strftime("%B %d, %Y")
+ 
+    # Filter to positions with no FAIL on any screen
+    candidates = [
+        s for s in state["screenings"]
+        if s["aristocrat_screen"] != "FAIL"
+        and s["earnings_screen"] != "FAIL"
+        and s["dividend_screen"] != "FAIL"
+    ]
+ 
+    skipped = [
+        s for s in state["screenings"]
+        if s not in candidates
+    ]
+ 
+    # Build position lookup for price/shares context
+    position_map = {p["ticker"]: p for p in state["positions"]}
+ 
+    # Format candidate lines
+    candidate_lines = []
+    for s in candidates:
+        p = position_map.get(s["ticker"], {})
+        shares = p.get("shares", "?")
+        price = p.get("current_price", 0)
+        value = shares * price if isinstance(shares, int) else "?"
+        status = "PROCEED WITH CAUTION" if any([
+            s["aristocrat_screen"] == "CAUTION",
+            s["earnings_screen"] == "CAUTION",
+            s["dividend_screen"] == "CAUTION",
+        ]) else "RECOMMEND"
+        candidate_lines.append(
+            f"  {s['ticker']:<6} {shares} shares @ ${price:<8.2f} "
+            f"(~${value:,.0f})  →  {status}"
+        )
+ 
+    # Format skipped lines
+    skipped_lines = []
+    for s in skipped:
+        reasons = []
+        if s["aristocrat_screen"] == "FAIL":
+            reasons.append("not a dividend aristocrat")
+        if s["earnings_screen"] == "FAIL":
+            reasons.append("earnings risk")
+        if s["dividend_screen"] == "FAIL":
+            reasons.append("no dividend")
+        skipped_lines.append(
+            f"  {s['ticker']:<6} → SKIP  ({', '.join(reasons)})"
+        )
+ 
+    order_summary = f"""
+{'=' * 60}
+  ORDER SUMMARY — {today}
+  Income Wheel: Covered Call Candidates
+  Account Type: 401k / Roth (Tax-Advantaged)
+{'=' * 60}
+ 
+ACTIONABLE POSITIONS ({len(candidates)} of {len(state['screenings'])}):
+{chr(10).join(candidate_lines)}
+ 
+POSITIONS TO SKIP THIS CYCLE:
+{chr(10).join(skipped_lines)}
+ 
+{'=' * 60}
+  Next Step: Review full report above, then consult
+  your broker to select strike and expiry.
+  Future: automated order creation via brokerage API.
+{'=' * 60}
+"""
+ 
+    return {"order_summary": order_summary}
