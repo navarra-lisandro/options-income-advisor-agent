@@ -55,7 +55,7 @@ lint:
 # -----------------------------------------------------------------------------
 test:
 	@echo "Running unit tests..."
-	poetry run pytest tests/ -v
+	poetry run pytest tests/ -v || [ $$? -eq 5 ]
 
 # -----------------------------------------------------------------------------
 # eval — run LangSmith evaluation experiment via SDK
