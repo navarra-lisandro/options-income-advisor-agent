@@ -34,10 +34,12 @@ position is a suitable covered call candidate based on three key screens.
 
 A few things made this domain work well for this exercise:
 
-- **Multi-step reasoning maps naturally to nodes.** Every covered call
-  decision involves a sequence of distinct checks — it's not one big
-  inference, it's a pipeline of smaller ones. That's exactly what
-  LangGraph is designed for.
+- **Multi-step reasoning maps naturally to nodes.** LangGraph describes
+  itself as a low-level orchestration framework for building controllable
+  agents, designed specifically for workflows where state needs to be
+  passed through a sequence of discrete steps. A covered call screening
+  decision is exactly that kind of workflow: a series of distinct checks
+  where each step informs the next.
 
 - **The screening questions produce clear yes/no branching.** Conditional
   edges in LangGraph are most convincing when the conditions are
@@ -48,7 +50,7 @@ A few things made this domain work well for this exercise:
 - **The eval dataset writes itself.** Because the screening logic has
   real right and wrong answers, building a LangSmith evaluation dataset
   with meaningful expected outputs is straightforward. A position with
-  earnings next week should not get a covered call recommendation — full
+  earnings next week should not get a covered call recommendation, full
   stop.
 
 ---
@@ -58,14 +60,14 @@ A few things made this domain work well for this exercise:
 I went back and forth on this one. A taxable account adds a tax
 consideration layer that initially seemed interesting for demonstrating
 agent reasoning. But when I thought it through, the taxable account
-agent mostly says no — avoid dividend stocks, avoid short-term gains,
+agent mostly says no, avoid dividend stocks, avoid short-term gains,
 stay away from this, watch out for that. That's avoidance logic.
 
 A 401k/Roth account lets the agent make positive, nuanced recommendations
-across multiple dimensions — dividend profile, earnings risk, dividend
+across multiple dimensions: dividend profile, earnings risk, dividend
 capture overlap. That's selection logic, and it produces a richer,
 more interesting agent. The tax-advantaged context also makes the
-Income Wheel strategy genuinely compelling — premiums compound
+Income Wheel strategy genuinely compelling since premiums compound
 tax-free, which is the whole point.
 
 The taxable account implementation was considered and deliberately
@@ -83,19 +85,19 @@ convenience:
 Dividend aristocrats are held for the long-term income stream. Selling
 covered calls on them amplifies income on a position you already intend
 to hold indefinitely. If it's not a dividend aristocrat, the income
-wheel is less compelling — you're just renting out shares you might
+wheel is less compelling, and you're just renting out shares you might
 not care as much about keeping.
 
 **2. Does the expiry window overlap upcoming earnings?**
 Earnings cause volatility spikes and unpredictable price moves. Selling
 a call into an earnings event exposes the position to assignment risk
-or a loss that wipes out the premium entirely. This is a hard stop —
-if earnings fall within the expiry window, the recommendation is to
+or a loss that wipes out the premium entirely. This is a hard stop.
+If earnings fall within the expiry window, the recommendation is to
 wait for the next cycle.
 
 **3. Does the covered call overlap the ex-dividend date?**
 If the ex-dividend date falls before the call expiry, the call buyer
-may exercise early to capture the dividend — pulling the shares away
+may exercise early to capture the dividend, thus pulling the shares away
 before the dividend is collected. This is a subtler risk that many
 new options traders miss. The agent flags it explicitly and adjusts
 the recommendation accordingly.
@@ -104,7 +106,7 @@ the recommendation accordingly.
 
 ## Data Approach — Synthetic Data with Tool-Calling Pattern
 
-The portfolio data is entirely synthetic — there are no live market
+The portfolio data is entirely synthetic as there are no live market
 API calls. This was a deliberate choice for a few reasons: it keeps
 the project self-contained, eliminates external API dependencies that
 could break during a demo, and lets us design the dataset to produce
