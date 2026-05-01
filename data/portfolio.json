@@ -1,0 +1,50 @@
+{
+  "account": {
+    "type": "401k",
+    "owner": "Lisandro Navarra",
+    "reference_date": "2026-05-08",
+    "strategy": "Income Wheel — Leg 1 (Covered Call)",
+    "option_expiry_window_days": 30
+  },
+  "positions": [
+    {
+      "ticker": "JNJ",
+      "company": "Johnson & Johnson",
+      "shares": 100,
+      "avg_cost_basis": 158.50,
+      "current_price": 162.75,
+      "is_dividend_aristocrat": true,
+      "dividend_yield_pct": 3.1,
+      "next_ex_dividend_date": "2026-05-23",
+      "next_earnings_date": "2026-07-15",
+      "sector": "Healthcare",
+      "notes": "Dividend aristocrat with 60+ years of consecutive dividend increases. Earnings well outside 30-day expiry window. Ex-dividend date outside expiry window. Clean covered call candidate."
+    },
+    {
+      "ticker": "KO",
+      "company": "The Coca-Cola Company",
+      "shares": 200,
+      "avg_cost_basis": 61.20,
+      "current_price": 63.45,
+      "is_dividend_aristocrat": true,
+      "dividend_yield_pct": 3.4,
+      "next_ex_dividend_date": "2026-05-14",
+      "next_earnings_date": "2026-06-25",
+      "sector": "Consumer Staples",
+      "notes": "Dividend aristocrat with 60+ years of consecutive dividend increases. Earnings outside expiry window. However ex-dividend date falls within 30-day expiry window — early assignment risk if call buyer exercises to capture dividend."
+    },
+    {
+      "ticker": "NVDA",
+      "company": "NVIDIA Corporation",
+      "shares": 50,
+      "avg_cost_basis": 820.00,
+      "current_price": 875.50,
+      "is_dividend_aristocrat": false,
+      "dividend_yield_pct": 0.03,
+      "next_ex_dividend_date": null,
+      "next_earnings_date": "2026-05-28",
+      "sector": "Technology",
+      "notes": "High momentum growth stock. Not a dividend aristocrat. Earnings fall within 30-day expiry window — significant IV crush and assignment risk. Not recommended for covered call this cycle. Better candidate for Cash-Secured Put (Income Wheel Leg 2) post-earnings."
+    }
+  ]
+}
