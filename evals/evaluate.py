@@ -114,6 +114,9 @@ def run_agent(inputs: dict) -> dict:
         {}
     )
 
+    # Debug Line — used for investigation on local development
+    print(f"DEBUG {ticker} screening: {screening}")
+
     return {
         "ticker": ticker,
         "aristocrat_screen": screening.get("aristocrat_screen", ""),

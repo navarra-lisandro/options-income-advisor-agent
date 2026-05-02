@@ -55,7 +55,7 @@
       "is_dividend_aristocrat": false,
       "dividend_yield_pct": 0.0,
       "next_ex_dividend_date": null,
-      "next_earnings_date": "2026-05-12",
+      "next_earnings_date": "2026-05-09",
       "sector": "Technology",
       "notes": "High volatility momentum stock. Not a dividend aristocrat. Earnings in 4 days — well within the 30-day expiry window. Hard stop — do not sell covered call this cycle. Significant IV crush and gap risk around earnings event."
     },
