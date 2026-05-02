@@ -236,7 +236,7 @@ def create_eval_dataset() -> str:
     # Check if dataset already exists — idempotency guard
     if client.has_dataset(dataset_name=DATASET_NAME):
         print(f"Dataset '{DATASET_NAME}' already exists — skipping creation.")
-        print(f"To recreate, delete the dataset in LangSmith UI first.")
+        print("To recreate, delete the dataset in LangSmith UI first.")
         return DATASET_NAME
 
     print(f"Creating dataset '{DATASET_NAME}'...")
@@ -254,7 +254,7 @@ def create_eval_dataset() -> str:
     )
 
     print(f"[OK] Dataset '{DATASET_NAME}' created with {len(EXAMPLES)} examples.")
-    print(f"View at: https://smith.langchain.com")
+    print("View at: https://smith.langchain.com")
     return DATASET_NAME
 
 

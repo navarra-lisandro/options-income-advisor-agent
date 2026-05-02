@@ -307,7 +307,7 @@ def run_evaluation() -> None:
 
     print("")
     print("Evaluation complete.")
-    print(f"View results at: https://smith.langchain.com")
+    print("View results at: https://smith.langchain.com")
     print("")
 
     # Print summary to terminal
