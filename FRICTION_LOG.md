@@ -156,39 +156,83 @@ this is simply an observation from my own experience building this project.
 
 ---
 
-## Friction #6 — Poetry 2.x defaults to package mode
-New users using Poetry purely for dependency management hit this error when CI tries to install the project. The fix (package-mode = false) is not obvious from the error message. The error suggests --no-root as a workaround but the cleaner fix is the pyproject.toml setting.
+## Friction #6 — LangGraph Examples Use Hardcoded Data Sources
 
-**Category:** Setup / Dependency Management
-**Severity:** Medium — CI fails clearly, error message is verbose but resolution not obvious
+**Category:** Documentation / Evaluation Readiness
+**Severity:** Medium — causes rework when moving from dev to eval
 
 **What happened:**
-During the initial GitHub Actions CI run, the pipeline failed
-at the dependency installation step with the following error:
-
-"The current project could not be installed: No file/folder
-found for package options-income-advisor-agent"
-
-The error surfaced in CI, not during local development, as
-poetry install ran cleanly on my machine without this issue.
+LangGraph documentation and quickstart examples tend to show agents reading
+from fixed, hardcoded data sources. I built the initial agent reading from
+`portfolio.json` directly inside a node, following this pattern. Only when
+I reached the evaluation phase did I realize the agent needed to accept
+dynamic inputs for LangSmith evaluation to work meaningfully.
 
 **Impact on my experience:**
-Resolving the error required searching online for the correct
-Poetry 2.x configuration. While the error message does mention
-package-mode = false as a possible fix, it presents it as one
-of three options without clarity on which is most appropriate
-for a dependency-management-only project. The correct solution
-was adding package-mode = false under [tool.poetry] in
-pyproject.toml.
+I had to refactor `load_portfolio()` to accept injected positions before
+eval code could be written. In a larger project this could be a significant
+rework rather than a small change.
 
 **Observation:**
-This is a Poetry 2.x behavior, not specific to LangChain.
-However, since it surfaced during LangChain project setup,
-it may be worth a brief mention in the installation guide
-for developers using Poetry — simply noting that
-package-mode = false is recommended for dependency-only
-projects.
+Earlier guidance in LangGraph documentation — even a brief note in the
+evaluation section saying "your agent should accept dynamic inputs for
+effective evaluation" — would have surfaced this design requirement earlier
+in the development cycle. If this guidance exists, I didn't encounter it
+before hitting the problem myself.
 
+---
+
+## Friction #7 — has_dataset() Idempotency Not Mentioned in Quickstart
+
+**Category:** Documentation / Evaluation
+**Severity:** Low — easy to miss but causes confusing duplicate data
+
+**What happened:**
+The LangSmith quickstart and evaluation examples do not mention the
+`has_dataset()` idempotency check when creating datasets programmatically.
+Running a dataset creation script more than once — common in CI pipelines
+or during development iteration — silently creates duplicate datasets in
+LangSmith.
+
+**Impact on my experience:**
+I added an explicit `has_dataset()` check based on prior experience with
+similar patterns in other APIs, but a developer without that instinct would
+create duplicate datasets and wonder why their eval results appeared doubled.
+
+**Observation:**
+A note in the dataset creation documentation — or a code snippet showing
+the idempotency check — would be a small addition that prevents a confusing
+experience for new users running scripts more than once.
+
+---
+
+## Friction #8 — LangSmith to_pandas() Requires pandas but Is Not Documented
+
+**Category:** Documentation / Evaluation
+**Severity:** Medium — causes silent failure without a safety net
+
+**What happened:**
+The LangSmith SDK's `EvaluationResults` object exposes a `to_pandas()`
+method that is shown in evaluation documentation examples. Calling this
+method requires `pandas` to be installed as a separate dependency, but
+this requirement is not mentioned in the LangSmith documentation or the
+`evaluate()` function reference.
+
+**Impact on my experience:**
+`pandas` was not installed in the project's Poetry virtual environment.
+The `to_pandas()` call failed silently because it was wrapped in a
+`try/except Exception` block — without that safety net, the evaluation
+script would have crashed with a `ModuleNotFoundError` that would have
+been confusing to diagnose given no mention of pandas in the LangSmith
+docs. `pandas` was subsequently added explicitly to `pyproject.toml`.
+
+**Observation:**
+A note in the `to_pandas()` documentation — or a dependency callout in
+the evaluation how-to guide — would prevent this surprise. Something as
+simple as "Note: to_pandas() requires pandas to be installed separately"
+would be sufficient.
+
+---
 
 ## Summary
 
@@ -199,3 +243,6 @@ projects.
 | 3 | LangSmith API key type not explained in UI | Low |
 | 4 | Layered architecture not explained upfront | Medium |
 | 5 | Eval + agent code mixed in quickstart examples | Medium |
+| 6 | LangGraph examples use hardcoded data sources | Medium |
+| 7 | has_dataset() idempotency not mentioned | Low |
+| 8 | to_pandas() requires pandas but undocumented | Medium |
