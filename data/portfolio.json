@@ -55,9 +55,22 @@
       "is_dividend_aristocrat": false,
       "dividend_yield_pct": 0.0,
       "next_ex_dividend_date": null,
-      "next_earnings_date": "2026-05-12",
+      "next_earnings_date": "2026-05-09",
       "sector": "Technology",
       "notes": "High volatility momentum stock. Not a dividend aristocrat. Earnings in 4 days — well within the 30-day expiry window. Hard stop — do not sell covered call this cycle. Significant IV crush and gap risk around earnings event."
+    },
+    {
+      "ticker": "MCD",
+      "company": "McDonald's Corporation",
+      "shares": 100,
+      "avg_cost_basis": 285.00,
+      "current_price": 295.50,
+      "is_dividend_aristocrat": true,
+      "dividend_yield_pct": 2.3,
+      "next_ex_dividend_date": "2026-06-15",
+      "next_earnings_date": "2026-08-01",
+      "sector": "Consumer Discretionary",
+      "notes": "Dividend aristocrat with 47+ consecutive years of dividend growth. Earnings well outside 30-day window. Ex-dividend date outside window. Clean covered call candidate."
     }
   ]
 }

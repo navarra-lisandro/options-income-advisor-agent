@@ -64,6 +64,10 @@ test:
 # Uploads dataset to LangSmith and runs evaluate() against the agent.
 # Results are visible in the LangSmith UI at smith.langchain.com
 # -----------------------------------------------------------------------------
+dataset:
+	@echo "Creating LangSmith evaluation dataset..."
+	poetry run python -m evals.dataset
+
 eval:
 	@echo "Running LangSmith evaluation experiment..."
 	poetry run python -m evals.evaluate
