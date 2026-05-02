@@ -184,6 +184,56 @@ adding account-level position sizing logic.
 
 ---
 
+## Conditional Routing — Order Summary
+
+During development, a key design question emerged: should the graph
+always generate an order summary, or only when actionable candidates
+exist?
+
+**Two Possible Strategies: Option A vs Option B:**
+Two routing strategies were considered:
+
+| Option | Route to summary when... | Use case |
+|--------|--------------------------|----------|
+| A | Any position is a dividend aristocrat | Human-in-the-loop — human reviews and overrides FAIL screens |
+| B | No position has any FAIL screen | Current implementation — stricter, no hard stops allowed |
+
+**The Decision — Option B Routing:**
+The graph routes to `create_order_summary` only when at least one
+position cleared all three screens with no FAIL result. A position
+with any FAIL screen is excluded from the order summary entirely.
+
+Option A is reserved for the human-in-the-loop future iteration
+where a trader can override a FAIL and force the agent to prepare
+an order summary anyway. See ADR-006.
+
+```
+Candidate criteria (all must be true):
+  aristocrat_screen != FAIL
+  AND earnings_screen != FAIL
+  AND dividend_screen != FAIL
+
+CAUTION is acceptable — it means proceed with judgment.
+FAIL on any screen = hard stop, skip this position.
+```
+
+**Why not always generate the order summary?**
+An order summary with no actionable positions is misleading as
+it implies there is something to act on when there isn't.
+The full report always runs and provides the complete
+explanation. The order summary is a clean, condensed view for 
+the trader when action is possible.
+
+**An unexpected Claude insight:**
+During testing, Claude independently flagged that TSLA's hard-coded 
+25-share position cannot support a covered call contract (which requires
+100 shares minimum). This domain knowledge was not encoded in
+the screening logic, yet Claude reasoned it from the position data.
+This validates the agent pattern: tools provide data, and
+Claude provides expertise.
+
+---
+
 ## Alternatives Considered
 
 | Option | Reason Not Chosen |

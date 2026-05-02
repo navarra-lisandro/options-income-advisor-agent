@@ -75,4 +75,5 @@ class AgentState(TypedDict):
     positions:    list[Position]          # raw portfolio loaded from portfolio.json
     screenings:   list[PositionScreening] # screening results, one per position
     messages:     Annotated[list, add_messages]  # tool call / LLM message history
-    final_report: str                     # formatted output written by last node
+    final_report: str                     # formatted output written
+    order_summary: str                    # branching example, only executes for PASS recommendation candidates
