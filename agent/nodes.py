@@ -111,6 +111,11 @@ def load_portfolio(state: AgentState) -> dict:
     This is the entry point of the graph — all subsequent nodes read
     positions from state rather than directly from the file.
     """
+    # If positions already in state, skip file load
+    if state.get("positions"):
+        return {}  # nothing to update
+    
+    # Otherwise load from portfolio.json
     portfolio_path = (
         Path(__file__).parent.parent / "data" / "portfolio.json"
     )
