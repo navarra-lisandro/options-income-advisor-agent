@@ -12,29 +12,35 @@ tools.py.
 
 File Dependency Map:
   graph.py
-    → imports nodes from nodes.py
-    → nodes.py imports tools from tools.py
-    → nodes.py imports state from state.py
-    → tools.py reads data from data/portfolio.json
+    -> imports nodes from nodes.py
+    -> nodes.py imports tools from tools.py
+    -> nodes.py imports state from state.py
+    -> tools.py reads data from data/portfolio.json
 
   Nothing outside agent/ needs to import from anywhere except
   graph.py — it is the single entry point for the agent.
 
 Graph Topology:
   START
-    → load_portfolio          (loads positions into state)
-    → screen_aristocrat       (Screen 1: dividend aristocrat check)
-    → screen_earnings         (Screen 2: earnings calendar check)
-    → screen_dividends        (Screen 3: dividend overlap check)
-    → generate_report         (Claude synthesizes recommendations)
-    → create_order_summary    (Conditional routing based on PASS/FAIL recommendation)
+    -> load_portfolio      (loads positions into state)
+    -> screen_aristocrat   (Screen 1: dividend aristocrat check)
+    -> screen_earnings     (Screen 2: earnings calendar check)
+    -> screen_dividends    (Screen 3: dividend overlap check)
+    -> generate_report     (Claude synthesizes recommendations)
+    -> create_order_summary (conditional: only when candidates exist)
   END
 
 Edge Strategy:
-  All edges are regular (unconditional). Every node always runs
-  regardless of screening results. See ADR-006 for the full
-  rationale and future considerations including conditional edges,
-  human-in-the-loop override, and brokerage order automation.
+  Screens use straight edges — every screening node always runs.
+  After generate_report a conditional edge routes to
+  create_order_summary when candidates exist, or END when all
+  positions are avoided. See ADR-006 for full rationale.
+
+Logging:
+  Graph-level logging covers build, compile, and invocation events.
+  Node-level logging is handled in nodes.py.
+  Configure log level via basicConfig in this module.
+  See ADR-007 for full observability strategy.
 
 LangGraph Reference Docs:
   StateGraph construction:
@@ -43,12 +49,16 @@ LangGraph Reference Docs:
     https://langchain-ai.github.io/langgraph/concepts/low_level/#nodes
   Adding edges:
     https://langchain-ai.github.io/langgraph/concepts/low_level/#edges
+  Conditional edges:
+    https://langchain-ai.github.io/langgraph/concepts/low_level/#conditional-edges
   Compiling the graph:
     https://langchain-ai.github.io/langgraph/concepts/low_level/#compiling-your-graph
   Human-in-the-loop (future consideration):
     https://langchain-ai.github.io/langgraph/concepts/human_in_the_loop/
 """
 
+import logging
+from dotenv import load_dotenv
 from langgraph.graph import StateGraph, START, END
 
 from agent.state import AgentState
@@ -62,7 +72,27 @@ from agent.nodes import (
 )
 
 # ---------------------------------------------------------------------------
-# Conditional Route
+# Load environment variables from .env
+# Required: ANTHROPIC_API_KEY, LANGCHAIN_API_KEY, LANGCHAIN_TRACING_V2
+# ---------------------------------------------------------------------------
+load_dotenv()
+
+# ---------------------------------------------------------------------------
+# Logging configuration
+# INFO level by default — captures graph lifecycle events
+# Set LANGCHAIN_VERBOSE=true in .env for detailed LangChain debug logs
+# ---------------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Conditional routing function
+# Determines whether to route to create_order_summary or END
+# after generate_report completes
 # ---------------------------------------------------------------------------
 def route_after_report(state: AgentState) -> str:
     """
@@ -78,7 +108,10 @@ def route_after_report(state: AgentState) -> str:
         and s["earnings_screen"] != "FAIL"
         and s["dividend_screen"] != "FAIL"
     ]
-    return "has_candidates" if candidates else "all_avoided"
+    route = "has_candidates" if candidates else "all_avoided"
+    logger.info("route_after_report: %d candidate(s) -> %s", len(candidates), route)
+    return route
+
 
 # ---------------------------------------------------------------------------
 # Build the graph
@@ -94,6 +127,7 @@ def build_graph() -> StateGraph:
         graph = build_graph()
         result = graph.invoke({})
     """
+    logger.info("build_graph: building options income advisor agent graph")
     builder = StateGraph(AgentState)
 
     # -----------------------------------------------------------------------
@@ -106,19 +140,20 @@ def build_graph() -> StateGraph:
     builder.add_node("screen_earnings", screen_earnings)
     builder.add_node("screen_dividends", screen_dividends)
     builder.add_node("generate_report", generate_report)
+    builder.add_node("create_order_summary", create_order_summary)
 
     # -----------------------------------------------------------------------
     # Define edges — the execution order of nodes
-    # Unconditional and Conditional Branching.
-    # See ADR-006 for rationale and future edge considerations.
+    # Screening nodes use straight edges — always run in sequence.
+    # After generate_report a conditional edge routes based on
+    # whether any positions cleared all three screens.
+    # See ADR-006 for rationale and future conditional edge considerations.
     # -----------------------------------------------------------------------
     builder.add_edge(START, "load_portfolio")
     builder.add_edge("load_portfolio", "screen_aristocrat")
     builder.add_edge("screen_aristocrat", "screen_earnings")
     builder.add_edge("screen_earnings", "screen_dividends")
     builder.add_edge("screen_dividends", "generate_report")
-    builder.add_node("create_order_summary", create_order_summary)
-    #Conditional edge branch route_after_report only executes for PASS recommendations
     builder.add_conditional_edges(
         "generate_report",
         route_after_report,
@@ -127,16 +162,19 @@ def build_graph() -> StateGraph:
             "all_avoided": END
         }
     )
-    #Always execute the create_order_summary edge summary, regardless of PASS/FAIL 
     builder.add_edge("create_order_summary", END)
 
-    return builder.compile()
+    graph = builder.compile()
+    logger.info("build_graph: graph compiled successfully with 6 nodes")
+    return graph
 
 
 # ---------------------------------------------------------------------------
 # Entry point — run the agent directly via: make run
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
+    logger.info("Starting options income advisor agent")
+
     print("\n" + "=" * 60)
     print("  Options Income Advisor Agent")
     print("  Income Wheel — Covered Call Screening")
@@ -145,9 +183,9 @@ if __name__ == "__main__":
 
     graph = build_graph()
 
-    # Invoke the graph with empty initial state
-    # load_portfolio node populates positions on first run
+    logger.info("Invoking graph against portfolio")
     result = graph.invoke({})
+    logger.info("Graph execution complete")
 
     print("\n" + "=" * 60)
     print("  SCREENING RESULTS")
@@ -163,6 +201,6 @@ if __name__ == "__main__":
     print("  FINAL REPORT")
     print("=" * 60)
     print(f"\n{result.get('final_report', 'No report generated.')}\n")
-    # Execute print after the FINAL REPORT block (if order summary is present):
+
     if result.get("order_summary"):
         print(result["order_summary"])

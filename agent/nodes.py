@@ -18,12 +18,20 @@ Architectural Decision — One Node Per Screen:
 
 Node Execution Flow:
   START
-    → load_portfolio       loads positions from portfolio.json into state
-    → screen_aristocrat    runs dividend aristocrat check for all positions
-    → screen_earnings      runs earnings calendar check for all positions
-    → screen_dividends     runs dividend overlap check for all positions
-    → generate_report      Claude synthesizes results into recommendations
+    -> load_portfolio       loads positions from portfolio.json into state
+    -> screen_aristocrat    runs dividend aristocrat check for all positions
+    -> screen_earnings      runs earnings calendar check for all positions
+    -> screen_dividends     runs dividend overlap check for all positions
+    -> generate_report      Claude synthesizes results into recommendations
+    -> create_order_summary formats actionable positions (conditional)
   END
+
+Logging:
+  Each node uses Python's built-in logging module.
+  INFO  level captures node start/completion and position counts.
+  DEBUG level captures per-ticker screening results.
+  Set LANGCHAIN_VERBOSE=true in .env for detailed LangChain logs.
+  See ADR-007 for full observability strategy.
 
 LangGraph Reference Docs:
   Node basics:
@@ -47,6 +55,7 @@ Design Decisions:
 """
 
 import json
+import logging
 from datetime import date
 from pathlib import Path
 
@@ -62,11 +71,12 @@ from agent.tools import (
     TOOLS,
 )
 
-# ---------------------------------------------------------------------------
-# Load environment variables from .env
-# Required: ANTHROPIC_API_KEY, LANGCHAIN_API_KEY, LANGCHAIN_TRACING_V2
-# ---------------------------------------------------------------------------
 load_dotenv()
+
+# ---------------------------------------------------------------------------
+# Module-level logger
+# ---------------------------------------------------------------------------
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # LLM instance — bound with tools for the generate_report node
@@ -110,12 +120,16 @@ def load_portfolio(state: AgentState) -> dict:
     Loads the synthetic portfolio from data/portfolio.json into state.
     This is the entry point of the graph — all subsequent nodes read
     positions from state rather than directly from the file.
+
+    If positions are already injected into state (e.g. from eval harness),
+    the file load is skipped — allowing the agent to accept dynamic inputs.
     """
-    # If positions already in state, skip file load
+    logger.info("load_portfolio: starting")
+
     if state.get("positions"):
-        return {}  # nothing to update
-    
-    # Otherwise load from portfolio.json
+        logger.info("load_portfolio: positions already in state, skipping file load")
+        return {}
+
     portfolio_path = (
         Path(__file__).parent.parent / "data" / "portfolio.json"
     )
@@ -135,6 +149,7 @@ def load_portfolio(state: AgentState) -> dict:
         for p in data["positions"]
     ]
 
+    logger.info("load_portfolio: loaded %d positions from portfolio.json", len(positions))
     return {"positions": positions, "screenings": []}
 
 
@@ -149,19 +164,22 @@ def screen_aristocrat(state: AgentState) -> dict:
     PositionScreening entry in state.
 
     Screen logic:
-      PASS  → stock is a dividend aristocrat
-      FAIL  → stock is not a dividend aristocrat
+      PASS  -> stock is a dividend aristocrat
+      FAIL  -> stock is not a dividend aristocrat
     """
+    logger.info("screen_aristocrat: screening %d positions", len(state["positions"]))
     screenings = list(state.get("screenings", []))
 
     for position in state["positions"]:
         ticker = position["ticker"]
         result = check_dividend_aristocrat.invoke({"ticker": ticker})
+        logger.debug("screen_aristocrat: %s -> %s", ticker, result["screen_result"])
 
         screening, idx = _get_or_create_screening(screenings, ticker)
         screening["aristocrat_screen"] = result["screen_result"]
         screenings[idx] = screening
 
+    logger.info("screen_aristocrat: complete")
     return {"screenings": screenings}
 
 
@@ -176,10 +194,11 @@ def screen_earnings(state: AgentState) -> dict:
     PositionScreening entry in state.
 
     Screen logic (30-day expiry window default):
-      PASS    → earnings outside the expiry window
-      CAUTION → earnings within window but more than 7 days away
-      FAIL    → earnings within 7 days — hard stop
+      PASS    -> earnings outside the expiry window
+      CAUTION -> earnings within window but more than 7 days away
+      FAIL    -> earnings within 7 days — hard stop
     """
+    logger.info("screen_earnings: screening %d positions", len(state["positions"]))
     screenings = list(state.get("screenings", []))
 
     for position in state["positions"]:
@@ -187,11 +206,13 @@ def screen_earnings(state: AgentState) -> dict:
         result = check_earnings_calendar.invoke(
             {"ticker": ticker, "expiry_days": 30}
         )
+        logger.debug("screen_earnings: %s -> %s", ticker, result["screen_result"])
 
         screening, idx = _get_or_create_screening(screenings, ticker)
         screening["earnings_screen"] = result["screen_result"]
         screenings[idx] = screening
 
+    logger.info("screen_earnings: complete")
     return {"screenings": screenings}
 
 
@@ -206,10 +227,11 @@ def screen_dividends(state: AgentState) -> dict:
     PositionScreening entry in state.
 
     Screen logic (30-day expiry window default):
-      PASS    → ex-dividend date outside expiry window
-      CAUTION → ex-dividend date falls within expiry window
-      FAIL    → no dividend (not applicable for income wheel)
+      PASS    -> ex-dividend date outside expiry window
+      CAUTION -> ex-dividend date falls within expiry window
+      FAIL    -> no dividend (not applicable for income wheel)
     """
+    logger.info("screen_dividends: screening %d positions", len(state["positions"]))
     screenings = list(state.get("screenings", []))
 
     for position in state["positions"]:
@@ -217,11 +239,13 @@ def screen_dividends(state: AgentState) -> dict:
         result = check_dividend_overlap.invoke(
             {"ticker": ticker, "expiry_days": 30}
         )
+        logger.debug("screen_dividends: %s -> %s", ticker, result["screen_result"])
 
         screening, idx = _get_or_create_screening(screenings, ticker)
         screening["dividend_screen"] = result["screen_result"]
         screenings[idx] = screening
 
+    logger.info("screen_dividends: complete")
     return {"screenings": screenings}
 
 
@@ -243,6 +267,10 @@ def generate_report(state: AgentState) -> dict:
     Output is written to state as final_report (formatted string)
     and as individual recommendation fields in each PositionScreening.
     """
+    logger.info(
+        "generate_report: generating recommendations for %d positions",
+        len(state["positions"])
+    )
     today = date.today().isoformat()
 
     # Build context for Claude
@@ -271,9 +299,9 @@ For each position, you have been provided with three screening results:
   - dividend_screen: whether the ex-dividend date overlaps the expiry (PASS/CAUTION/FAIL)
 
 Screening result interpretation:
-  PASS    → condition is favorable
-  CAUTION → condition requires judgment — flag the risk but don't hard stop
-  FAIL    → hard stop — do not recommend a covered call this cycle
+  PASS    -> condition is favorable
+  CAUTION -> condition requires judgment — flag the risk but don't hard stop
+  FAIL    -> hard stop — do not recommend a covered call this cycle
 
 Overall recommendation logic:
   - RECOMMEND if all screens are PASS
@@ -285,7 +313,7 @@ For each RECOMMEND or PROCEED WITH CAUTION position, include:
   - Use 5-8% as a reasonable covered call premium yield estimate for blue chip stocks
   - Use 8-12% for higher volatility stocks
 
-Write in plain English. Be concise but specific. Think like a human trader, not a robot."""
+Write in plain English. Be concise but specific. Think like a trader, not a robot."""
 
     user_message = f"""Please analyze the following portfolio and provide
 covered call recommendations for the current 30-day expiry cycle:
@@ -308,6 +336,8 @@ End with a brief portfolio-level summary."""
     response = llm.invoke(messages)
     final_report = response.content
 
+    logger.info("generate_report: complete")
+
     # Update recommendation field in each screening
     screenings = list(state["screenings"])
 
@@ -328,40 +358,42 @@ def create_order_summary(state: AgentState) -> dict:
     Formats positions with no FAIL screens into a clean order summary.
     This node is only reached via conditional edge when at least one
     position cleared all three screens (PASS or CAUTION — no FAIL).
- 
+
     This node serves two purposes:
       1. Immediate — clean, actionable output for the trader
       2. Future — structured input for brokerage order automation
- 
+
     The distinction between Option A and Option B routing:
-      Option A (this is future feature, incorporates a human-in-the-loop):
+      Option A (future, human-in-the-loop):
         Route here if any position is a dividend aristocrat,
         regardless of other screens. Human reviews and overrides.
       Option B (current implementation):
         Route here only if no screen is FAIL for at least one
         position. Stricter — no hard stops allowed.
- 
+
     See ADR-006 for full conditional edge rationale.
     """
-    from datetime import date
-    today = date.today().strftime("%B %d, %Y")
- 
-    # Filter to positions with no FAIL on any screen
     candidates = [
         s for s in state["screenings"]
         if s["aristocrat_screen"] != "FAIL"
         and s["earnings_screen"] != "FAIL"
         and s["dividend_screen"] != "FAIL"
     ]
- 
+
+    logger.info(
+        "create_order_summary: %d candidate(s) of %d positions",
+        len(candidates),
+        len(state["screenings"])
+    )
+
     skipped = [
         s for s in state["screenings"]
         if s not in candidates
     ]
- 
+
     # Build position lookup for price/shares context
     position_map = {p["ticker"]: p for p in state["positions"]}
- 
+
     # Format candidate lines
     candidate_lines = []
     for s in candidates:
@@ -376,9 +408,9 @@ def create_order_summary(state: AgentState) -> dict:
         ]) else "RECOMMEND"
         candidate_lines.append(
             f"  {s['ticker']:<6} {shares} shares @ ${price:<8.2f} "
-            f"(~${value:,.0f})  →  {status}"
+            f"(~${value:,.0f})  ->  {status}"
         )
- 
+
     # Format skipped lines
     skipped_lines = []
     for s in skipped:
@@ -390,27 +422,28 @@ def create_order_summary(state: AgentState) -> dict:
         if s["dividend_screen"] == "FAIL":
             reasons.append("no dividend")
         skipped_lines.append(
-            f"  {s['ticker']:<6} → SKIP  ({', '.join(reasons)})"
+            f"  {s['ticker']:<6} -> SKIP  ({', '.join(reasons)})"
         )
- 
+
     order_summary = f"""
 {'=' * 60}
-  ORDER SUMMARY — {today}
+  ORDER SUMMARY — {date.today().strftime("%B %d, %Y")}
   Income Wheel: Covered Call Candidates
   Account Type: 401k / Roth (Tax-Advantaged)
 {'=' * 60}
- 
+
 ACTIONABLE POSITIONS ({len(candidates)} of {len(state['screenings'])}):
 {chr(10).join(candidate_lines)}
- 
+
 POSITIONS TO SKIP THIS CYCLE:
 {chr(10).join(skipped_lines)}
- 
+
 {'=' * 60}
   Next Step: Review full report above, then consult
   your broker to select strike and expiry.
   Future: automated order creation via brokerage API.
 {'=' * 60}
 """
- 
+
+    logger.info("create_order_summary: complete")
     return {"order_summary": order_summary}
