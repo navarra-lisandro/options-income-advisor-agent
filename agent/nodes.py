@@ -63,8 +63,6 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_anthropic import ChatAnthropic
 from dotenv import load_dotenv
 
-load_dotenv()
-
 from agent.state import AgentState, PositionScreening
 from agent.tools import (
     check_dividend_aristocrat,
@@ -72,6 +70,8 @@ from agent.tools import (
     check_dividend_overlap,
     TOOLS,
 )
+
+load_dotenv()
 
 # ---------------------------------------------------------------------------
 # Module-level logger
