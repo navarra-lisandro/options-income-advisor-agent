@@ -1,6 +1,7 @@
 # ADR-007 — LangSmith: Observability and Evaluation Strategy
 
 **Date:** 2026-05-02
+**Updated:** 2026-05-03
 **Status:** Accepted
 **Author:** Lisandro Navarra
 
@@ -8,8 +9,8 @@
 
 ## Context
 
-The exercise required running a LangSmith evaluation experiment 
-using both the SDK and the UI. Beyond the evaluation
+The project required running a LangSmith evaluation
+experiment using both the SDK and the UI. Beyond the evaluation
 requirement, LangSmith also serves as the observability layer for
 the agent, providing tracing, cost tracking, and performance
 monitoring out of the box.
@@ -50,9 +51,8 @@ LangGraph run — 30.91s total, $0.0229
 
 **Latency:**
 Node execution times are visible per run. `generate_report` is
-the expensive step at ~30s dominated by the LLM call. All screening
-nodes complete in under 0.01s, and it shows that the deterministic 
-tool calls are very fast.
+the expensive step at ~30s — the LLM call dominates. All screening
+nodes complete in under 0.01s — deterministic tool calls are fast.
 
 **Errors:**
 Failed runs appear as red traces in LangSmith UI. Tool errors,
@@ -76,25 +76,137 @@ LangSmith tracks cost per run automatically.
 - Evaluation experiment (5 examples, 2 evaluators): $0.0529
 
 **Logs:**
-Full tool input/output is inspectable per run. The complete
-message history between Claude and its tools is visible in the
-LangSmith trace — equivalent to structured application logs
-with full context preserved.
+Full tool input/output is inspectable per run. The complete 
+message history between Claude and its tools is visible in 
+the LangSmith trace — equivalent to structured application 
+logs with full context preserved.
 
 ### Node Granularity Validates Observability Design
 
 The decision to use one node per screen (ADR-006) pays dividends
 in LangSmith. Each screening step appears as a discrete trace
-entry and slow or incorrect screens are immediately visible without
+entry, and slow or incorrect screens are immediately visible without
 digging through aggregated logs. This is the same principle as
 breaking a monolithic service into discrete components for
 independent monitoring.
 
 ---
 
+## Application-Level Logging
+
+LangSmith provides APM-level distributed tracing but does not
+replace application-level logging. Python's built-in `logging`
+module was added to complement LangSmith tracing with lifecycle
+events that exist outside the request scope.
+
+### What Was Added
+
+```python
+# agent/graph.py — graph lifecycle events
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger(__name__)
+```
+
+Each node in `agent/nodes.py` has its own logger:
+
+```
+INFO  level: node start/completion, position counts
+DEBUG level: per-ticker screening results (troubleshooting)
+```
+
+### Log Output Example
+
+```
+2026-05-03 09:41:55 [INFO] __main__: Starting options income advisor agent
+2026-05-03 09:41:55 [INFO] __main__: build_graph: graph compiled with 6 nodes
+2026-05-03 09:41:55 [INFO] agent.nodes: load_portfolio: loaded 5 positions
+2026-05-03 09:41:55 [INFO] agent.nodes: screen_aristocrat: screening 5 positions
+2026-05-03 09:41:55 [INFO] agent.nodes: screen_aristocrat: complete
+2026-05-03 09:42:34 [INFO] __main__: route_after_report: 3 candidate(s) -> has_candidates
+2026-05-03 09:42:34 [INFO] __main__: Graph execution complete
+```
+
+### Logging vs Tracing — The Distinction
+
+```
+LangSmith tracing:      APM-level: node spans, tool calls,
+                        LLM inputs/outputs, latency, cost.
+                        Request-scoped, structured data.
+
+Python logging:         Application-level: bootstrapping,
+                        startup events, node lifecycle,
+                        routing decisions, debug output.
+                        Outside the request scope.
+```
+
+Both are needed in production. LangSmith cannot capture what
+happens before the first graph node runs, therefore Python 
+logging fills that gap.
+
+### LANGCHAIN_VERBOSE Setting
+
+The `.env.example` includes `LANGCHAIN_VERBOSE=false`. Setting
+this to `true` enables detailed LangChain internal debug logs,
+useful for troubleshooting but too verbose for normal operation.
+
+---
+
+## LangSmith Applications — Decision Not to Use
+
+While doing experiment analysis, I explored the LangSmith
+"Applications" feature visible in the UI sidebar. This feature
+groups traces, datasets, and experiments under a named application
+context. After investigation, I chose not to use it for this project.
+
+### What LangSmith Applications Require
+
+Per the official documentation, deploying to LangSmith Applications
+requires a `langgraph.json` configuration file that specifies the
+graph entry point and dependencies. This is designed for agents
+deployed to LangSmith's hosting infrastructure, but not locally run
+agents.
+
+### The Migration Path Problem
+
+Additionally, when attempting to associate the existing tracing 
+project `options-income-advisor-agent` with a newly created 
+Application, the LangSmith UI returned:
+
+```
+"A tracing project with this name already exists.
+Please use a different name."
+```
+
+There does not appear to be a way to link an existing project 
+to an Application. The Application requires a new, dedicated 
+project, and that would mean splitting all historical traces, 
+experiments, and evaluation history done so far.
+
+See `docs/images/langsmith-application-project-exists-error.png`
+for a screenshot of this error.
+
+### Decision
+
+I chose to keep all traces, experiments, and evaluation history
+in the existing workspace-level project rather than split history
+across two projects. The current setup is fully functional for
+the purposes of this project.
+
+This limitation is documented in `FRICTION_LOG.md` item #10.
+
+**Future consideration:** Create the LangSmith Application and
+associated project at the **start of a new project** and before \
+any traces are generated. The migration path does not exist, so 
+the correct order is Application first, tracing second.
+
+---
+
 ## Offline vs Online Evaluation
 
-I implement **offline evaluation**, where the agent is evaluated against
+I implement **offline evaluation** — the agent is evaluated against
 a fixed dataset of known inputs and expected outputs before
 deployment. This is analogous to QA pre-production testing in
 traditional software development.
@@ -111,8 +223,8 @@ Online evaluation (future consideration):
 ```
 
 Offline evaluation was chosen because it directly satisfies the
-stated requirement and is the appropriate starting point for
-a new agent. The online evaluation is a natural next iteration once
+take-home requirement and is the appropriate starting point for
+a new agent. Online evaluation is a natural next iteration once
 the agent is deployed.
 
 ---
@@ -184,7 +296,7 @@ Two complementary evaluation approaches are used together:
 
 Validates screening logic deterministically. Checks that
 `aristocrat_screen`, `earnings_screen`, and `dividend_screen`
-match expected PASS/CAUTION/FAIL values exactly. Binary — 0 or 1.
+match expected PASS/CAUTION/FAIL values exactly. Binary: 0 or 1.
 
 ```python
 checks = [
@@ -207,16 +319,16 @@ Scored 0-10, normalized to 0-1 for LangSmith compatibility.
 ```
 Structured field matching alone:
   "Screens were correct but recommendation was incoherent"
-  → passes eval, fails in production
+  -> passes eval, fails in production
 
 LLM-as-a-judge alone:
   "Reasoning was eloquent but agent said RECOMMEND
    when it should say AVOID"
-  → passes eval, gives wrong advice
+  -> passes eval, gives wrong advice
 
 Together:
   Screens correct AND reasoning sound
-  → meaningful, trustworthy score
+  -> meaningful, trustworthy score
 ```
 
 ---
@@ -224,7 +336,7 @@ Together:
 ## Target Function — graph.invoke() as Evaluation Target
 
 The LangSmith `evaluate()` function accepts a target function
-that takes a dict and returns a dict. My `run_agent()` wrapper
+that takes a dict and returns a dict. The `run_agent()` wrapper
 follows the officially recommended LangSmith pattern:
 
 Reference:
@@ -253,13 +365,13 @@ Evaluation runs are **intentionally excluded from CI**:
 
 ```
 CI runs automatically:
-  make lint    → ruff, no API keys needed, free
-  make test    → pytest, no API keys needed, free
+  make lint    -> ruff, no API keys needed, free
+  make test    -> pytest, no API keys needed, free
 
 Manual runs only:
-  make run     → requires ANTHROPIC_API_KEY, costs money
-  make dataset → requires LANGCHAIN_API_KEY
-  make eval    → requires both keys, ~$0.25/run
+  make run     -> requires ANTHROPIC_API_KEY, costs money
+  make dataset -> requires LANGCHAIN_API_KEY
+  make eval    -> requires both keys, ~$0.25/run
 ```
 
 Running `make eval` in CI would:
@@ -271,8 +383,8 @@ Eval runs are a deliberate human decision, not an automated gate.
 
 **Future consideration:** A scheduled nightly GitHub Actions workflow
 could run `make eval` automatically using secrets stored in the
-CI environment — appropriate once the agent is in production and
-regression detection is needed.
+CI environment. This would be the appropriate path once the agent 
+is in production and regression detection is needed.
 
 ---
 
@@ -300,18 +412,30 @@ without that safety net would encounter a confusing
 `ModuleNotFoundError`. Pandas was added explicitly to
 `pyproject.toml` as a result.
 
+**4. Create LangSmith Application before tracing:**
+The LangSmith Applications feature cannot link existing tracing
+projects. If using Applications, create the Application and its
+associated project first — before running any traces. The
+migration path does not exist once traces have been generated
+under a workspace-level project.
+
 ---
 
 ## Consequences
 
 - **Positive:** Full observability out of the box — tracing, cost
   tracking, and experiment history with zero additional code.
+- **Positive:** Python logging complements LangSmith with
+  application-level lifecycle events outside the request scope.
 - **Positive:** Evaluation results are comparable across runs via
   dataset versioning and experiment prefixes.
 - **Positive:** Two-evaluator approach catches both logic errors
   and reasoning quality gaps independently.
-- **Neutral:** Eval runs are manual — appropriate for this scope,
-  but a scheduled CI eval is the natural next step.
+- **Neutral:** Eval runs are manual which is appropriate for this
+  scope, but a scheduled CI eval is the natural next step.
+- **Neutral:** LangSmith Applications are not used, and all 
+  observability lives at workspace project level. Fully functional 
+  for this scope.
 - **Watch:** Dataset coupling to portfolio.json means data changes
   affect eval results silently. Future refactor should make the
   eval dataset fully self-contained.
@@ -325,4 +449,7 @@ without that safety net would encounter a confusing
 - [How to define a target function](https://docs.smith.langchain.com/evaluation/how_to_guides/define_target)
 - [LLM-as-a-judge evaluator](https://docs.smith.langchain.com/evaluation/how_to_guides/llm_as_judge)
 - [Python SDK evaluate() reference](https://docs.smith.langchain.com/reference/python/evaluation)
-- See also: FRICTION_LOG.md items #6, #7, #8
+- [LangSmith application structure](https://docs.langchain.com/langsmith/application-structure)
+- [LangSmith tracing with LangChain](https://docs.langchain.com/langsmith/trace-with-langchain)
+- See also: FRICTION_LOG.md items #6, #7, #8, #9, #10
+- See also: docs/images/langsmith-application-project-exists-error.png
