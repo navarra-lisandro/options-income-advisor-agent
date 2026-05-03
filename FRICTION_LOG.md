@@ -1,17 +1,16 @@
 # Friction Log
 
-Candid developer experience notes captured during setup and development of
-`options-income-advisor-agent`. These observations are shared in the spirit
-of honest, constructive feedback from the perspective of a new user onboarding
-to the LangGraph + LangSmith ecosystem for the first time.
+These are my candid developer experience notes captured during setup and 
+development of `options-income-advisor-agent`. These observations are shared 
+in the spirit of honest, constructive feedback from the perspective of 
+a new user onboarding to the LangGraph + LangSmith ecosystem for the first time.
 
-These are not criticisms — the tooling is powerful and well-designed. These
-are simply moments where I paused, got confused, or had to search for answers
-that I expected to find more readily. I share them in case they are useful
-to the team.
+These are not intended as criticisms, as I find the tooling to be powerful 
+and well-designed. These are simply moments where I paused, got confused, 
+or had to search for answers that I expected to find more readily. 
 
 If documentation or guidance already exists for any of these items, I may
-have simply missed it — in which case, more prominent linking from the
+have simply missed it, in which case, more prominent linking from the
 quickstart might help future users find it faster.
 
 ---
@@ -174,9 +173,9 @@ eval code could be written. In a larger project this could be a significant
 rework rather than a small change.
 
 **Observation:**
-Earlier guidance in LangGraph documentation — even a brief note in the
+Earlier guidance in LangGraph documentation, or a brief note in the
 evaluation section saying "your agent should accept dynamic inputs for
-effective evaluation" — would have surfaced this design requirement earlier
+effective evaluation", would have surfaced this design requirement earlier
 in the development cycle. If this guidance exists, I didn't encounter it
 before hitting the problem myself.
 
@@ -190,9 +189,9 @@ before hitting the problem myself.
 **What happened:**
 The LangSmith quickstart and evaluation examples do not mention the
 `has_dataset()` idempotency check when creating datasets programmatically.
-Running a dataset creation script more than once — common in CI pipelines
-or during development iteration — silently creates duplicate datasets in
-LangSmith.
+Running a dataset creation script more than once, something that is common 
+in CI pipelines or during development iteration — silently creates duplicate 
+datasets in LangSmith.
 
 **Impact on my experience:**
 I added an explicit `has_dataset()` check based on prior experience with
@@ -200,8 +199,8 @@ similar patterns in other APIs, but a developer without that instinct would
 create duplicate datasets and wonder why their eval results appeared doubled.
 
 **Observation:**
-A note in the dataset creation documentation — or a code snippet showing
-the idempotency check — would be a small addition that prevents a confusing
+A note in the dataset creation documentation, or a code snippet showing
+the idempotency check, would be a small addition that prevents a confusing
 experience for new users running scripts more than once.
 
 ---
@@ -221,16 +220,90 @@ this requirement is not mentioned in the LangSmith documentation or the
 **Impact on my experience:**
 `pandas` was not installed in the project's Poetry virtual environment.
 The `to_pandas()` call failed silently because it was wrapped in a
-`try/except Exception` block — without that safety net, the evaluation
+`try/except Exception` block, but without that safety net, the evaluation
 script would have crashed with a `ModuleNotFoundError` that would have
 been confusing to diagnose given no mention of pandas in the LangSmith
-docs. `pandas` was subsequently added explicitly to `pyproject.toml`.
+docs. The `pandas` package was subsequently added explicitly to `pyproject.toml`.
 
 **Observation:**
-A note in the `to_pandas()` documentation — or a dependency callout in
-the evaluation how-to guide — would prevent this surprise. Something as
+A note in the `to_pandas()` documentation, or a dependency callout in
+the evaluation how-to guide, would prevent this surprise. Something as
 simple as "Note: to_pandas() requires pandas to be installed separately"
 would be sufficient.
+
+---
+
+## Friction #9 — "Run in Playground" Misleading from Experiment Context
+
+**Category:** UI / Evaluation
+**Severity:** Medium — creates false expectation, wastes setup time
+
+**What happened:**
+From within a LangSmith dataset experiment view, the dropdown menu
+presents a "Run in Playground" option. The context strongly implies
+this will replay the experiment interactively against the dataset.
+Instead, it opens a generic prompt playground with no connection to
+the LangGraph agent, no awareness of the dataset, and no ability to
+run stateful multi-node graphs.
+
+**Impact on my experience:**
+I spent time attempting to configure the Playground before realizing
+it is designed for simple prompt-based LLMs, and not stateful LangGraph
+agents. The output was a generic Claude chatbot response treating the
+dataset input fields as raw user messages.
+
+**Observation:**
+The "Run in Playground" option appearing inside an experiment context
+creates a reasonable expectation that it will replay that experiment
+interactively. A tooltip or inline note clarifying that the Playground
+supports prompt-based LLMs only — not LangGraph agents — would
+prevent this confusion. Alternatively, disabling or hiding the option
+for LangGraph-based experiments would be cleaner.
+
+---
+
+## Friction #10 — LangSmith Applications Cannot Link Existing Projects
+
+**Category:** UI / Project Organization
+**Severity:** Medium — forces history split, no migration path
+
+**What happened:**
+After successfully setting up tracing, experiments, and evaluation
+under a workspace-level project named `options-income-advisor-agent`,
+I discovered the LangSmith UI has an "Applications" feature that
+groups traces and datasets under a named application context. When
+I attempted to create an Application and associate the existing
+project with it, the UI only offered the option to create a new
+project — not to link an existing one.
+
+Entering the existing project name produced this error:
+
+```
+"A tracing project with this name already exists.
+Please use a different name."
+```
+
+See `docs/images/langsmith-application-project-exists-error.png`
+for a screenshot of this error.
+
+**Impact on my experience:**
+All historical traces, experiments, and evaluation results remain
+at the workspace level and cannot be migrated to the Application
+context. Starting fresh with a new project would mean losing all
+experiment history and the iterative improvement trend visible
+across experiments #1 through #6.
+
+**Observation:**
+The natural developer onboarding order is: start tracing first,
+then discover the Applications feature later. This order makes it
+impossible to use Applications with existing project history.
+I think that a "Link existing project" option in the Application 
+creation flow would solve this entirely. Alternatively, clearer 
+onboarding guidance suggesting developers create an Application 
+before generating any traces would help new users avoid this trap.
+
+If this migration path exists somewhere in the documentation,
+I was not able to find it.
 
 ---
 
@@ -246,3 +319,5 @@ would be sufficient.
 | 6 | LangGraph examples use hardcoded data sources | Medium |
 | 7 | has_dataset() idempotency not mentioned | Low |
 | 8 | to_pandas() requires pandas but undocumented | Medium |
+| 9 | "Run in Playground" misleading from experiment context | Medium |
+| 10 | Applications cannot link existing projects — no migration path | Medium |
