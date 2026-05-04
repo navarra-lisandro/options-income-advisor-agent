@@ -12,32 +12,44 @@ Claude as the underlying LLM.
 
 ```
 options-income-advisor-agent/
-├── .env.example              # template for required env vars
-├── .python-version           # pyenv pin (3.11.9)
-├── pyproject.toml            # poetry config and dependencies
-├── poetry.lock               # locked dependency versions
-├── README.md                 # setup + architecture docs
-├── Makefile                  # common commands (run, lint, test, eval)
-├── FRICTION_LOG.md           # developer experience notes for LangChain team
+├── .env.example                    # template for required env vars
+├── .github/
+│   └── workflows/
+│       └── ci.yml                  # GitHub Actions CI pipeline
+├── .python-version                 # pyenv pin (3.11.9)
+├── pyproject.toml                  # poetry config and dependencies
+├── poetry.lock                     # locked dependency versions
+├── Makefile                        # common commands (install, run, lint, test, eval, dataset)
+├── README.md                       # setup, architecture, and usage docs
+├── FRICTION_LOG.md                 # developer experience notes for LangChain team
+├── LICENSE
 ├── agent/
 │   ├── __init__.py
-│   ├── graph.py              # LangGraph state machine
-│   ├── nodes.py              # individual node functions
-│   ├── state.py              # AgentState definition
-│   └── tools.py              # tool definitions
+│   ├── graph.py                    # LangGraph state machine — entry point
+│   ├── nodes.py                    # node functions (load, screen, report, summary)
+│   ├── state.py                    # AgentState and Position TypedDicts
+│   └── tools.py                    # @tool definitions for screening logic
 ├── data/
-│   └── portfolio.json        # synthetic portfolio dataset
+│   └── portfolio.json              # synthetic portfolio dataset (5 positions)
 ├── evals/
-│   ├── dataset.py            # LangSmith dataset creation
-│   └── evaluate.py           # SDK-based evaluate() run
+│   ├── __init__.py
+│   ├── dataset.py                  # creates LangSmith eval dataset (idempotent)
+│   └── evaluate.py                 # SDK-based evaluate() with LLM-as-a-judge
 ├── notebooks/
-│   └── exploration.ipynb     # scratch work and node prototyping
+│   └── exploration.ipynb           # scratch work and node prototyping
+├── tests/
+│   └── __init__.py                 # pytest test suite (placeholder)
 └── docs/
-    └── adr/
-        ├── ADR-001-python-version.md
-        ├── ADR-002-poetry.md
-        ├── ADR-003-anthropic.md
-        └── ADR-004-agent-domain.md
+    ├── adr/
+    │   ├── ADR-001-python-version.md
+    │   ├── ADR-002-poetry.md
+    │   ├── ADR-003-anthropic.md
+    │   ├── ADR-004-agent-domain.md
+    │   ├── ADR-005-ci-cd.md
+    │   ├── ADR-006-graph-topology.md
+    │   └── ADR-007-langsmith.md
+    └── images/
+        └── langsmith-application-project-exists-error.png
 ```
 ---
 
