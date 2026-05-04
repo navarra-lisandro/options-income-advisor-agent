@@ -123,7 +123,7 @@ python --version  # should show 3.11.9
 **3. Install dependencies:**
 
 ```bash
-poetry install
+make install
 ```
 
 **4. Configure environment variables:**
@@ -133,23 +133,57 @@ cp .env.example .env
 # Edit .env and add your API keys
 ```
 
-**5. Activate the virtual environment:**
-
-```bash
-poetry shell
-```
-
 ---
 
 ## Environment Variables
 
-| Variable              | Description                                          |
-|-----------------------|------------------------------------------------------|
-| `ANTHROPIC_API_KEY`   | Anthropic API key from console.anthropic.com         |
-| `LANGCHAIN_API_KEY`   | LangSmith API key from smith.langchain.com           |
-| `LANGCHAIN_TRACING_V2`| Set to `true` to enable LangSmith tracing            |
-| `LANGCHAIN_PROJECT`   | LangSmith project name for this agent                |
+| Variable | Required | Description |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | Yes | Anthropic API key from console.anthropic.com |
+| `LANGCHAIN_API_KEY` | Yes | LangSmith API key from smith.langchain.com |
+| `LANGCHAIN_TRACING_V2` | Yes | Set to `true` to enable LangSmith tracing |
+| `LANGCHAIN_PROJECT` | Yes | LangSmith project name for trace grouping |
+| `LANGCHAIN_VERBOSE` | No | Set to `true` for detailed LangChain debug logs (default: `false`) |
 
+---
+
+## Happy Path — Running the Agent
+
+Once setup is complete, the full workflow is driven by `make` commands:
+
+**Run the agent against the synthetic portfolio:**
+```bash
+make run
+```
+
+**Create the LangSmith evaluation dataset (run once):**
+```bash
+make dataset
+```
+
+**Run the evaluation experiment via SDK:**
+```bash
+make eval
+```
+
+**Check code quality:**
+```bash
+make lint
+```
+
+**Run unit tests:**
+```bash
+make test
+```
+
+**See all available commands:**
+```bash
+make help
+```
+
+> Note: `poetry shell` is not used in this project. All commands run
+> inside the Poetry virtual environment automatically via `poetry run`.
+> Use `make` commands as the single entry point for all operations.
 ---
 
 ## Development Tools

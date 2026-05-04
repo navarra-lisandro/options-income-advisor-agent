@@ -18,10 +18,13 @@ observability, and future extensibility.
 
 ## Decision
 
-For the initial release we use **straight-line regular edges** 
-for all node transitions. Every node always runs regardless of 
-screening results. No conditional branching is implemented in 
-the current version.
+I use **normal edges** (unconditional) for all screening nodes —
+every screen always runs regardless of intermediate results.
+After generate_report, a **conditional edge** routes to
+create_order_summary when actionable candidates exist, or directly
+to END when all positions are avoided.
+See the LangGraph edges reference:
+https://langchain-ai.github.io/langgraph/concepts/low_level/#edges
 
 ---
 
