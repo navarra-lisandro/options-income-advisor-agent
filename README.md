@@ -39,6 +39,46 @@ options-income-advisor-agent/
         ├── ADR-003-anthropic.md
         └── ADR-004-agent-domain.md
 ```
+---
+
+## Architecture
+
+### File Dependencies
+
+```mermaid
+graph TD
+    A[graph.py] --> B[nodes.py]
+    B --> C[state.py]
+    B --> D[tools.py]
+    D -.->|reads from| E[data/portfolio.json]
+
+    style A fill:#7F77DD,color:#fff
+    style B fill:#1D9E75,color:#fff
+    style C fill:#1D9E75,color:#fff
+    style D fill:#1D9E75,color:#fff
+    style E fill:#BA7517,color:#fff
+```
+
+### Graph Execution Flow
+
+```mermaid
+graph TD
+    START([START]) --> load_portfolio
+    load_portfolio[load_portfolio</br>reads portfolio.json] --> screen_aristocrat
+    screen_aristocrat[screen_aristocrat</br>Screen 1: dividend check] --> screen_earnings
+    screen_earnings[screen_earnings</br>Screen 2: earnings check] --> screen_dividends
+    screen_dividends[screen_dividends</br>Screen 3: overlap check] --> generate_report
+    generate_report[generate_report</br>Claude synthesizes output]
+    generate_report -->|has_candidates| create_order_summary
+    generate_report -->|all_avoided| END_NODE([END])
+    create_order_summary[create_order_summary</br>formats actionable positions] --> END_NODE
+
+    style START fill:#888780,color:#fff
+    style END_NODE fill:#888780,color:#fff
+    style generate_report fill:#7F77DD,color:#fff
+    style create_order_summary fill:#BA7517,color:#fff
+```
+
 
 ---
 
