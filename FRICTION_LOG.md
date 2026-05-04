@@ -1,24 +1,22 @@
 # Friction Log
 
-These are my candid developer experience notes captured during setup and 
-development of `options-income-advisor-agent`. These observations are shared 
-in the spirit of honest, constructive feedback from the perspective of 
-a new user onboarding to the LangGraph + LangSmith ecosystem for the first time.
+These are my candid developer experience notes captured during setup and development of
+`options-income-advisor-agent`. These observations are shared in the spirit
+of honest, constructive feedback from the perspective of a new user onboarding
+to the LangGraph + LangSmith ecosystem for the first time.
 
-These are not intended as criticisms, as I find the tooling to be powerful 
-and well-designed. These are simply moments where I paused, got confused, 
-or had to search for answers that I expected to find more readily. 
+These are not intended as criticisms, as I think the tooling is powerful and well-designed. These
+are simply moments where I paused, got confused, or had to search for answers
+that I expected to find more readily. I share them in case they are useful
+to the team.
 
-If documentation or guidance already exists for any of these items, I may
-have simply missed it, in which case, more prominent linking from the
-quickstart might help future users find it faster.
+If documentation or guidance already exists for any of these items, I may have simply missed it as I'm still finding my way around the ecosystem and the docs are extensive. More prominent linking from the quickstart would help future users in my position find answers faster.
 
 ---
 
 ## Friction #1 — Python Version Not Documented
 
 **Category:** Setup / Onboarding
-**Severity:** High — causes silent failures for new users
 
 **What happened:**
 I started with Python 3.13.3 (the current stable release) and encountered
@@ -42,13 +40,11 @@ it easily from the quickstart entry point.
 ## Friction #2 — Poetry 2.x + langchain-core Constraint Conflict
 
 **Category:** Setup / Dependency Management
-**Severity:** Medium — clear error message but resolution not obvious
 
-**Note:** This is not a LangChain bug — it is a Poetry 2.x behavior change.
+**Note:** This is not a LangChain bug since it is a Poetry 2.x behavior change.
 However, since it surfaces specifically when installing LangChain packages,
 a note in the installation guide would meaningfully reduce friction for
-users on Poetry 2.x. I mention it here only because it is part of the
-full onboarding experience a developer has when building with this ecosystem.
+users on Poetry 2.x.
 
 **What happened:**
 When initializing a new Poetry 2.x project with the default `python = "^3.11"`
@@ -65,44 +61,39 @@ with some of the required packages Python requirement:
 ```
 
 **Impact on my experience:**
-The error message pointed to Poetry documentation on dependency specification
-rather than suggesting the direct fix. The resolution — changing the
-constraint to `requires-python = ">=3.11,<4.0.0"` — was straightforward
-once identified, but took time to track down.
+The error message pointed to Poetry documentation rather than suggesting
+the direct fix. The resolution was to change the constraint to
+`requires-python = ">=3.11,<4.0.0"` and was straightforward once identified.
 
 **Observation:**
 If the LangChain installation guide noted this specific constraint for
 Poetry 2.x users, it would reduce friction for developers using the newer
-version of Poetry. This may already be documented somewhere I didn't find.
+version of Poetry.
 
 ---
 
 ## Friction #3 — LangSmith API Key Type Not Explained
 
-**Category:** Onboarding / Authentication
-**Severity:** Low — minor confusion, easily resolved
+**Category:** Setup / Authentication
 
 **What happened:**
-When creating a LangSmith API key, the UI presented two options —
-Personal Access Token and Service Key — without explanation of when to
+When creating a LangSmith API key, the UI presented two options:
+(1) Personal Access Token and (2) Service Key. However, it did not include explanation of when to
 use each or which is appropriate for a developer building a local agent.
 
 **Impact on my experience:**
 I had to make an educated guess (Personal Access Token for local development)
-based on general familiarity with similar patterns in other tools. A new
-developer without that background might not have the same intuition.
+based on general familiarity with similar patterns in other tools.
 
 **Observation:**
 A brief inline description of each option's intended use case would remove
-this ambiguity entirely. This is a small change that would meaningfully
-improve the onboarding experience for new users.
+this ambiguity entirely.
 
 ---
 
 ## Friction #4 — Layered Architecture Not Explained Upfront
 
-**Category:** Documentation / Conceptual Clarity
-**Severity:** Medium — leads to architectural misunderstandings
+**Category:** LangGraph / Conceptual Clarity
 
 **What happened:**
 I initially assumed that constructs like `@tool` and `ToolNode` were
@@ -118,206 +109,251 @@ LLM Provider  → the model that executes reasoning (Claude, GPT-4o, etc.)
 
 **Impact on my experience:**
 This misunderstanding initially made the architecture feel more complex and
-provider-specific than it actually is. Once I understood the layering, the
-design clicked immediately.
+provider-specific than it actually is.
 
 **Observation:**
 An architecture overview diagram near the top of the LangGraph documentation
-showing these three layers would likely accelerate understanding for new
-users. Explicitly noting that tools are model-agnostic in the tool-calling
-documentation would also help. If this exists somewhere, I didn't encounter
-it early enough in my onboarding to benefit from it.
+showing these three layers would likely accelerate understanding for new users.
 
 ---
 
 ## Friction #5 — LangSmith Quickstart Mixes Eval and Agent Code
 
-**Category:** Documentation / Code Organization
-**Severity:** Medium — may lead to suboptimal architectural patterns
+**Category:** LangSmith / Code Organization
 
 **What happened:**
 The LangSmith evaluation examples I referenced tended to co-locate evaluation
-code alongside agent logic in the same file. As someone who thinks about
-separation of concerns, I found myself wanting clearer guidance on how to
-structure a project that keeps these two concerns independent.
+code alongside agent logic in the same file. I found myself wanting clearer
+guidance on how to structure a project that keeps these two concerns independent.
 
 **Impact on my experience:**
-I made the deliberate choice to separate `agent/` (pure agent logic) from
-`evals/` (evaluation harness) in this project, but that decision required
-conscious effort rather than being guided by the documentation.
+I made the deliberate choice to separate `agent/` from `evals/`, but that
+decision required conscious effort rather than being guided by the documentation.
 
 **Observation:**
 A "Project Structure" section in the LangSmith evaluation documentation
 showing a clean separation between agent code and evaluation code might help
-new users adopt better patterns from the start. I recognize there may be
-valid reasons the quickstart examples are structured the way they are —
-this is simply an observation from my own experience building this project.
+new users adopt better patterns from the start.
 
 ---
 
-## Friction #6 — LangGraph Examples Use Hardcoded Data Sources
+## Friction #6 — load_dotenv() Must Be Called Before LLM Instantiation
 
-**Category:** Documentation / Evaluation Readiness
-**Severity:** Medium — causes rework when moving from dev to eval
+**Category:** LangGraph Development / Authentication
+
+**What happened:**
+The LLM was instantiated at module level in `nodes.py`, which executes at
+import time, before `load_dotenv()` was called in `graph.py`. This produced
+a cryptic authentication error with no hint that import order was the cause.
+
+**Original problematic pattern:**
+```python
+# graph.py
+load_dotenv()  # too late — nodes.py already imported above
+
+from agent.nodes import load_portfolio, ...
+```
+
+**Error received:**
+```
+TypeError: Could not resolve authentication method. Expected either
+api_key or auth_token to be set.
+```
+
+**Fix — moved load_dotenv() to nodes.py before LLM instantiation:**
+https://github.com/navarra-lisandro/options-income-advisor-agent/blob/main/agent/nodes.py
+
+**Observation:**
+The LangChain docs show `ChatAnthropic()` instantiation but do not mention
+that environment variables must be loaded before the LLM object is created.
+For someone unfamiliar with Python module-level execution order, this is
+a non-obvious failure mode that would take meaningful time to diagnose.
+
+---
+
+## Friction #7 — Annotated[list, add_messages] Required for Message History
+
+**Category:** LangGraph Development / State Management
+
+**What happened:**
+Without the `add_messages` reducer, LangGraph silently replaces the messages
+list on each state update rather than appending to it. Claude loses context
+of which tools it already called, producing incorrect behavior with no error.
+
+**What a beginner would write:**
+```python
+class AgentState(TypedDict):
+    messages: list  # silently replaces on each update
+```
+
+**What is actually required:**
+```python
+from typing import Annotated
+from langgraph.graph.message import add_messages
+
+class AgentState(TypedDict):
+    messages: Annotated[list, add_messages]  # correctly appends
+```
+
+The `add_messages` reducer is documented in the LangGraph graphs
+reference at:
+https://langchain-ai.github.io/langgraph/reference/graphs/#add_messages
+
+However, it is not prominently featured in the quickstart where
+most new users first define their AgentState. Finding it requires
+knowing to look in the reference docs specifically.
+
+**Working code:**
+https://github.com/navarra-lisandro/options-income-advisor-agent/blob/main/agent/state.py
+
+**Observation:**
+This requirement is documented in the LangGraph state docs but is not
+prominently featured in the quickstart. The silent failure mode (i.e. where
+Claude loses tool call context without any error) makes this particularly
+difficult to diagnose for someone new to the framework.
+
+---
+
+## Friction #8 — Conditional Edge Routing Key Mismatch Produces Cryptic Error
+
+**Category:** LangGraph Development / Conditional Routing
+
+**What happened:**
+When the string returned by the routing function doesn't exactly match a key
+in the conditional edges dict, LangGraph raises a KeyError pointing to
+internal LangGraph code rather than the user's routing function.
+
+**Example of the problematic pattern:**
+```python
+# routing function returns:
+return "has_candidates"
+
+# edges dict has a typo:
+{
+    "has_candidate": "create_order_summary",  # missing 's'
+    "all_avoided": END
+}
+# Result: KeyError deep in LangGraph internals
+```
+
+**Working code:**
+https://github.com/navarra-lisandro/options-income-advisor-agent/blob/main/agent/graph.py
+
+**Observation:**
+A more helpful error message pointing to the routing function and listing
+available keys would save meaningful debugging time for new users writing
+their first conditional edge.
+
+---
+
+## Friction #9 — LangGraph Examples Use Hardcoded Data Sources
+
+**Category:** LangGraph Development / Evaluation Readiness
 
 **What happened:**
 LangGraph documentation and quickstart examples tend to show agents reading
 from fixed, hardcoded data sources. I built the initial agent reading from
-`portfolio.json` directly inside a node, following this pattern. Only when
-I reached the evaluation phase did I realize the agent needed to accept
-dynamic inputs for LangSmith evaluation to work meaningfully.
-
-**Impact on my experience:**
-I had to refactor `load_portfolio()` to accept injected positions before
-eval code could be written. In a larger project this could be a significant
-rework rather than a small change.
+`portfolio.json` directly inside a node. Only when I reached the evaluation
+phase did I realize the agent needed to accept dynamic inputs for LangSmith
+evaluation to work meaningfully, thus requiring a refactor.
 
 **Observation:**
-Earlier guidance in LangGraph documentation, or a brief note in the
-evaluation section saying "your agent should accept dynamic inputs for
-effective evaluation", would have surfaced this design requirement earlier
-in the development cycle. If this guidance exists, I didn't encounter it
-before hitting the problem myself.
+Earlier guidance (even a brief note saying "your agent should accept dynamic
+inputs for effective evaluation") would have surfaced this design requirement
+earlier in the development cycle.
 
 ---
 
-## Friction #7 — has_dataset() Idempotency Not Mentioned in Quickstart
+## Friction #10 — has_dataset() Idempotency Not Mentioned in Quickstart
 
-**Category:** Documentation / Evaluation
-**Severity:** Low — easy to miss but causes confusing duplicate data
+**Category:** LangSmith Development / Dataset Management
 
 **What happened:**
-The LangSmith quickstart and evaluation examples do not mention the
-`has_dataset()` idempotency check when creating datasets programmatically.
-Running a dataset creation script more than once, something that is common 
-in CI pipelines or during development iteration — silently creates duplicate 
-datasets in LangSmith.
-
-**Impact on my experience:**
-I added an explicit `has_dataset()` check based on prior experience with
-similar patterns in other APIs, but a developer without that instinct would
-create duplicate datasets and wonder why their eval results appeared doubled.
+The LangSmith quickstart does not mention the `has_dataset()` idempotency
+check when creating datasets programmatically. Running a dataset creation
+script more than once silently creates duplicate datasets.
 
 **Observation:**
-A note in the dataset creation documentation, or a code snippet showing
-the idempotency check, would be a small addition that prevents a confusing
-experience for new users running scripts more than once.
+A note or code snippet showing the idempotency check would prevent a
+confusing experience for new users running scripts more than once,
+particularly in CI pipelines.
 
 ---
 
-## Friction #8 — LangSmith to_pandas() Requires pandas but Is Not Documented
+## Friction #11 — LangSmith to_pandas() Requires pandas but Is Not Documented
 
-**Category:** Documentation / Evaluation
-**Severity:** Medium — causes silent failure without a safety net
+**Category:** LangSmith Development / Evaluation Results
 
 **What happened:**
-The LangSmith SDK's `EvaluationResults` object exposes a `to_pandas()`
-method that is shown in evaluation documentation examples. Calling this
-method requires `pandas` to be installed as a separate dependency, but
-this requirement is not mentioned in the LangSmith documentation or the
-`evaluate()` function reference.
-
-**Impact on my experience:**
-`pandas` was not installed in the project's Poetry virtual environment.
-The `to_pandas()` call failed silently because it was wrapped in a
-`try/except Exception` block, but without that safety net, the evaluation
-script would have crashed with a `ModuleNotFoundError` that would have
-been confusing to diagnose given no mention of pandas in the LangSmith
-docs. The `pandas` package was subsequently added explicitly to `pyproject.toml`.
+The LangSmith SDK's `EvaluationResults.to_pandas()` method requires `pandas`
+to be installed separately. This is not mentioned in the LangSmith docs.
+The call failed silently because it was wrapped in a `try/except Exception`
+block and without that safety net it would have crashed with a confusing
+`ModuleNotFoundError`.
 
 **Observation:**
-A note in the `to_pandas()` documentation, or a dependency callout in
-the evaluation how-to guide, would prevent this surprise. Something as
-simple as "Note: to_pandas() requires pandas to be installed separately"
-would be sufficient.
+A note such as "to_pandas() requires pandas to be installed separately"
+in the evaluation how-to guide would be sufficient.
 
 ---
 
-## Friction #9 — "Run in Playground" Misleading from Experiment Context
+## Friction #12 — "Run in Playground" Option Misleading from Experiment Context
 
-**Category:** UI / Evaluation
-**Severity:** Medium — creates false expectation, wastes setup time
+**Category:** LangSmith UI / Evaluation
 
 **What happened:**
-From within a LangSmith dataset experiment view, the dropdown menu
-presents a "Run in Playground" option. The context strongly implies
-this will replay the experiment interactively against the dataset.
-Instead, it opens a generic prompt playground with no connection to
-the LangGraph agent, no awareness of the dataset, and no ability to
-run stateful multi-node graphs.
-
-**Impact on my experience:**
-I spent time attempting to configure the Playground before realizing
-it is designed for simple prompt-based LLMs, and not stateful LangGraph
-agents. The output was a generic Claude chatbot response treating the
-dataset input fields as raw user messages.
+From within a dataset experiment view, the "Run in Playground" option
+implies it will replay the experiment interactively against the dataset.
+Instead it opens a generic prompt playground with no connection to the
+LangGraph agent.
 
 **Observation:**
-The "Run in Playground" option appearing inside an experiment context
-creates a reasonable expectation that it will replay that experiment
-interactively. A tooltip or inline note clarifying that the Playground
-supports prompt-based LLMs only — not LangGraph agents — would
-prevent this confusion. Alternatively, disabling or hiding the option
-for LangGraph-based experiments would be cleaner.
+A tooltip clarifying that Playground supports prompt-based LLMs only,
+not stateful LangGraph agents, would help set the right expectation.
+If this limitation is documented somewhere, I wasn't able to find it
+before spending time attempting to configure the Playground.
 
 ---
 
-## Friction #10 — LangSmith Applications Cannot Link Existing Projects
+## Friction #13 — LangSmith Applications Cannot Link Existing Projects
 
-**Category:** UI / Project Organization
-**Severity:** Medium — forces history split, no migration path
+**Category:** LangSmith UI / Project Organization
 
 **What happened:**
-After successfully setting up tracing, experiments, and evaluation
-under a workspace-level project named `options-income-advisor-agent`,
-I discovered the LangSmith UI has an "Applications" feature that
-groups traces and datasets under a named application context. When
-I attempted to create an Application and associate the existing
-project with it, the UI only offered the option to create a new
-project — not to link an existing one.
+After setting up tracing under a workspace-level project, I discovered the
+Applications feature but could not associate my existing project with it.
+The UI only allows creating new projects but not linking existing ones.
 
-Entering the existing project name produced this error:
-
+**Error received:**
 ```
 "A tracing project with this name already exists.
 Please use a different name."
 ```
 
 See `docs/images/langsmith-application-project-exists-error.png`
-for a screenshot of this error.
-
-**Impact on my experience:**
-All historical traces, experiments, and evaluation results remain
-at the workspace level and cannot be migrated to the Application
-context. Starting fresh with a new project would mean losing all
-experiment history and the iterative improvement trend visible
-across experiments #1 through #6.
 
 **Observation:**
-The natural developer onboarding order is: start tracing first,
-then discover the Applications feature later. This order makes it
-impossible to use Applications with existing project history.
-I think that a "Link existing project" option in the Application 
-creation flow would solve this entirely. Alternatively, clearer 
-onboarding guidance suggesting developers create an Application 
-before generating any traces would help new users avoid this trap.
-
-If this migration path exists somewhere in the documentation,
-I was not able to find it.
+A "Link existing project" option, or clearer onboarding guidance to create
+the Application before generating any traces, would solve this entirely.
+The natural developer onboarding order is to start tracing first and
+discover Applications later and this order makes migration impossible after the fact.
 
 ---
 
 ## Summary
 
-| # | Category | Severity |
+| # | Area | Category |
 |---|---|---|
-| 1 | Python version not documented in quickstart | High |
-| 2 | Poetry 2.x + langchain-core constraint conflict | Medium |
-| 3 | LangSmith API key type not explained in UI | Low |
-| 4 | Layered architecture not explained upfront | Medium |
-| 5 | Eval + agent code mixed in quickstart examples | Medium |
-| 6 | LangGraph examples use hardcoded data sources | Medium |
-| 7 | has_dataset() idempotency not mentioned | Low |
-| 8 | to_pandas() requires pandas but undocumented | Medium |
-| 9 | "Run in Playground" misleading from experiment context | Medium |
-| 10 | Applications cannot link existing projects — no migration path | Medium |
+| 1 | Setup | Python version not documented in quickstart |
+| 2 | Setup | Poetry 2.x + langchain-core constraint conflict |
+| 3 | Setup | LangSmith API key type not explained in UI |
+| 4 | LangGraph | Layered architecture not explained upfront |
+| 5 | LangSmith | Eval + agent code mixed in quickstart examples |
+| 6 | LangGraph | load_dotenv() must precede LLM instantiation |
+| 7 | LangGraph | Annotated[list, add_messages] required — silent failure |
+| 8 | LangGraph | Conditional edge key mismatch (cryptic error) |
+| 9 | LangGraph | Examples use hardcoded data sources |
+| 10 | LangSmith | has_dataset() idempotency not mentioned |
+| 11 | LangSmith | to_pandas() requires pandas ( undocumented) |
+| 12 | LangSmith | "Run in Playground" misleading from experiment context |
+| 13 | LangSmith | Applications cannot link existing projects |
