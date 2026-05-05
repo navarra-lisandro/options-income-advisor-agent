@@ -275,17 +275,3 @@ def check_dividend_overlap(ticker: str, expiry_days: int = 30) -> dict:
         "screen_result": screen_result,
         "notes": notes,
     }
-
-
-# ---------------------------------------------------------------------------
-# Tool registry — passed to ToolNode and LLM binding in graph.py
-# This is the registry we'll pass to both ToolNode and the LLM binding in graph.py. 
-# One place, referenced everywhere --> D.R.Y. SRE principle.
-# ---------------------------------------------------------------------------
-
-TOOLS = [
-    get_portfolio_positions,
-    check_dividend_aristocrat,
-    check_earnings_calendar,
-    check_dividend_overlap,
-]

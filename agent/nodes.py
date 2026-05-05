@@ -68,7 +68,6 @@ from agent.tools import (
     check_dividend_aristocrat,
     check_earnings_calendar,
     check_dividend_overlap,
-    TOOLS,
 )
 
 load_dotenv()
@@ -79,12 +78,9 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# LLM instance — bound with tools for the generate_report node
-# Model is configured once here and reused across nodes
+# LLM instance
 # ---------------------------------------------------------------------------
 llm = ChatAnthropic(model="claude-sonnet-4-5")
-llm_with_tools = llm.bind_tools(TOOLS)
-
 
 # ---------------------------------------------------------------------------
 # Helper — get or create a PositionScreening entry for a ticker
