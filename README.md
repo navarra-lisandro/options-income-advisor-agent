@@ -1,10 +1,10 @@
 # options-income-advisor-agent
 
-A LangGraph agent that analyzes a synthetic equity portfolio and recommends
-covered-call and cash-secured-put opportunities for income generation.
-
-Built as part of a LangSmith/LangGraph evaluation exercise using Anthropic's
-Claude as the underlying LLM.
+A LangGraph agent that screens a synthetic equity portfolio
+for covered call opportunities using the Income Wheel strategy
+for tax-advantaged accounts (401k/Roth). Evaluated with
+LangSmith using structured field matching and LLM-as-a-judge
+scoring.
 
 ---
 
