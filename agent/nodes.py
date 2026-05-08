@@ -404,7 +404,7 @@ def create_order_summary(state: AgentState) -> dict:
         ]) else "RECOMMEND"
         candidate_lines.append(
             f"  {s['ticker']:<6} {shares} shares @ ${price:<8.2f} "
-            f"(~${value:,.0f})  ->  {status}"
+            f"(${value:,.0f})  ->  {status}"
         )
 
     # Format skipped lines
