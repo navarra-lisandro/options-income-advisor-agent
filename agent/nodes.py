@@ -382,11 +382,6 @@ def create_order_summary(state: AgentState) -> dict:
         len(state["screenings"])
     )
 
-    skipped = [
-        s for s in state["screenings"]
-        if s not in candidates
-    ]
-
     # Build position lookup for price/shares context
     position_map = {p["ticker"]: p for p in state["positions"]}
 
@@ -407,20 +402,6 @@ def create_order_summary(state: AgentState) -> dict:
             f"(${value:,.0f})  ->  {status}"
         )
 
-    # Format skipped lines
-    skipped_lines = []
-    for s in skipped:
-        reasons = []
-        if s["aristocrat_screen"] == "FAIL":
-            reasons.append("not a dividend aristocrat")
-        if s["earnings_screen"] == "FAIL":
-            reasons.append("earnings risk")
-        if s["dividend_screen"] == "FAIL":
-            reasons.append("no dividend")
-        skipped_lines.append(
-            f"  {s['ticker']:<6} -> SKIP  ({', '.join(reasons)})"
-        )
-
     order_summary = f"""
 {'=' * 60}
   ORDER SUMMARY — {date.today().strftime("%B %d, %Y")}
@@ -430,9 +411,6 @@ def create_order_summary(state: AgentState) -> dict:
 
 ACTIONABLE POSITIONS ({len(candidates)} of {len(state['screenings'])}):
 {chr(10).join(candidate_lines)}
-
-POSITIONS TO SKIP THIS CYCLE:
-{chr(10).join(skipped_lines)}
 
 {'=' * 60}
   Next Step: Review full report above, then consult
